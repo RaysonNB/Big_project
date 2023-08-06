@@ -220,6 +220,7 @@ if __name__ == "__main__":
     get_b=0
     bottlecnt=0
     line_destory_cnt=0
+    times_cnt=4 #times count
     while not rospy.is_shutdown():
         rospy.Rate(10).sleep()
         
@@ -346,7 +347,7 @@ if __name__ == "__main__":
                 if b1==max(b1,b2,b3): mark=0
                 if b2==max(b1,b2,b3): mark=1
                 if b3==max(b1,b2,b3): mark=2
-                if b1 >=6 or b2>=6 or b3>=6: 
+                if b1 >=times_cnt or b2>=times_cnt or b3>=times_cnt: 
                     step2="turn"
                     gg=bb
                 #print("b1: %d b2: %d b3: %d" % (b1, b2, b3))
@@ -354,14 +355,13 @@ if __name__ == "__main__":
                 if sb == 0:
                     
                     b1,b2,b3=0,0,0
-                    
+                    '''
                     if mark==0: say("the right yellow bottle, which is the Vitamin C Sparkling Drink")
                     if mark==1: say("the middle green botlle, which is the only green tea here")
                     if mark==2: say("the left blue bottle, which is the Oolong Tea")
-                    
+                    '''
                     
                     sb+=1
-                    
                 #if len(bb)<2: continue
                 #print(bb)
                 h,w,c = outframe.shape
@@ -420,7 +420,6 @@ if __name__ == "__main__":
                 sumd+=v
                 if abs(e) <= 10:
                     time.sleep(1)
-                    turn_to(0,0.1)
                     step2="dead"
                     b1,b2,b3=0,0,0
                     mark=999
