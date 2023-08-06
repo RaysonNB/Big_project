@@ -355,11 +355,9 @@ if __name__ == "__main__":
                 if sb == 0:
                     
                     b1,b2,b3=0,0,0
-                    '''
-                    if mark==0: say("the right yellow bottle, which is the Vitamin C Sparkling Drink")
-                    if mark==1: say("the middle green botlle, which is the only green tea here")
-                    if mark==2: say("the left blue bottle, which is the Oolong Tea")
-                    '''
+                    if mark==0: say("the right bottle") #say("the right yellow bottle, which is the Vitamin C Sparkling Drink")
+                    if mark==1: say("the middle bottle") #say("the middle green botlle, which is the only green tea here")
+                    if mark==2: say("the left bottle") #say("the left blue bottle, which is the Oolong Tea")
                     
                     sb+=1
                 #if len(bb)<2: continue
