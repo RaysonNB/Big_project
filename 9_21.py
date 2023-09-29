@@ -16,7 +16,22 @@ def draw(event,x,y,flags,param):
     elif(event == cv2.EVENT_LBUTTONDBLCLK and mleft != [] and mright == []):
         mright.append(x)
         mright.append(y)
-
+def get_distance(px,py,pz,ax,ay,az,bx,by,bz):
+    A,B,C,p1,p2,p3,qx,qy,qz,distance=0,0,0,0,0,0,0,0,0,0
+    A=int(bx)-int(ax)
+    B=int(by)-int(ay)
+    C=int(bz)-int(az)
+    p1=int(A)*int(px)+int(B)*int(py)+int(C)*int(pz)
+    p2=int(A)*int(ax)+int(B)*int(ay)+int(C)*int(az)
+    p3=int(A)*int(A)+int(B)*int(B)+int(C)*int(C)
+    #print("1",p1,p2,p3)
+    if (p1-p2)!=0 and p3!=0:
+        t=(int(p1)-int(p2))/int(p3)
+        qx=int(A)*int(t) + int(ax)
+        qy=int(B)*int(t) + int(ay)
+        qz=int(C)*int(t) + int(az)
+        return int(int(pow(((int(qx)-int(px))**2 +(int(qy)-int(py))**2+(int(qz)-int(pz))**2),0.5)))
+    return 0
           
             
 def callback_depth(msg):
@@ -42,11 +57,11 @@ def dfs(x, y, statu):
 
     bx = False
     by = False
-    if abs(abs(depth_list[y + 1][x] - depth_list[y][x]) - abs(depth_list[y][x] - depth_list[y - 1][x])) < 3:
+    if abs(abs(depth_list[y + 1][x] - depth_list[y][x]) - abs(depth_list[y][x] - depth_list[y - 1][x])) < 2:
         by = True
         dfs(x, y - 1, statu)
         dfs(x, y + 1, statu)
-    if abs(abs(depth_list[y][x + 1] - depth_list[y][x]) - abs(depth_list[y][x] - depth_list[y][x - 1])) < 3:
+    if abs(abs(depth_list[y][x + 1] - depth_list[y][x]) - abs(depth_list[y][x] - depth_list[y][x - 1])) < 2:
         bx = True
         dfs(x + 1, y, statu)
         dfs(x - 1, y, statu)
@@ -79,6 +94,73 @@ def change_zero():
                             if depth_list[e + i][f + j] != 0:
                                 error.append(depth_list[e + i][f + j])
                     depth_list[e][f] = sum(error) // len(error)
+def callback_voice(msg):
+    global s
+    s = msg.text
+def say(a):
+    global publisher_speaker
+    publisher_speaker.publish(a)
+    
+def pose_draw(show):
+    cx7,cy7,cx9,cy9,cx5,cy5,l,r=0,0,0,0,0,0,0,0
+    s1,s2,s3,s4=0,0,0,0
+    global ax,ay,az,bx,by,bz
+    #for num in [7,9]: #[7,9] left, [8,10] right
+    n1,n2,n3=6,8,10
+    cx7, cy7 = get_pose_target(pose,n2)
+    
+    cx9, cy9 = get_pose_target(pose,n3)
+    
+    cx5, cy5 = get_pose_target(pose,n1)
+    if cx7==-1 and cx9!=-1:
+        s1,s2,s3,s4=cx5,cy5,cx9,cy9
+        cv2.circle(show, (cx5,cy5), 5, (0, 255, 0), -1)
+        ax,ay,az = get_real_xyz(depth2,cx5, cy5)
+        _,_,l=get_real_xyz(depth2,cx5,cy5)
+        cv2.circle(show, (cx9,cy9), 5, (0, 255, 0), -1)
+        bx, by, bz = get_real_xyz(depth2,cx9, cy9)
+        _,_,r=get_real_xyz(depth2,cx9,cy9)
+    elif cx7 !=-1 and cx9 ==-1:
+        s1,s2,s3,s4=cx5,cy5,cx7,cy7
+        cv2.circle(show, (cx5,cy5), 5, (0, 255, 0), -1)
+        ax, ay, az = get_real_xyz(depth2,cx5, cy5)
+        _,_,l=get_real_xyz(depth2,cx5,cy5)
+        cv2.circle(show, (cx7,cy7), 5, (0, 255, 0), -1)
+        bx,by,bz = get_real_xyz(depth2,cx7, cy7)
+        _,_,r=get_real_xyz(depth2,cx7,cy7)
+    elif cx7 ==-1 and cx9 == -1:
+        pass
+        #continue
+    else:
+        s1,s2,s3,s4=cx7,cy7,cx9,cy9
+        cv2.circle(show, (cx7,cy7), 5, (0, 255, 0), -1)
+        ax, ay, az = get_real_xyz(depth2,cx7, cy7)
+        _,_,l=get_real_xyz(depth2,cx7,cy7)
+        cv2.circle(show, (cx9,cy9), 5, (0, 255, 0), -1)
+        bx, by, bz = get_real_xyz(depth2,cx9, cy9)
+        _,_,r=get_real_xyz(depth2,cx9,cy9)
+    
+    cv2.putText(show, str(int(l)), (s1 + 5, s2 - 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5)
+    cv2.putText(show, str(int(r)), (s3 + 5, s4 - 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5)
+    return ax, ay, az, bx, by, bz
+def get_pose_target(pose,num):
+    p = []
+    for i in [num]:
+        if pose[i][2] > 0:
+            p.append(pose[i])
+    
+    if len(p) == 0: return -1, -1
+    return int(p[0][0]),int(p[0][1])    
+def get_real_xyz(dp,x, y):
+    a = 55.0 * np.pi / 180
+    b = 86.0 * np.pi / 180
+    d = dp[y][x]
+    h, w = dp.shape[:2]
+    x = int(x) - int(w // 2)
+    y = int(y) - int(h // 2)
+    real_y = round(y * 2 * d * np.tan(a / 2) / h)
+    real_x = round(x * 2 * d * np.tan(b / 2) / w)
+    return real_x, real_y, d
 depth_copy = None
 depth_list = []
 xylist = []
@@ -105,7 +187,7 @@ if __name__ == "__main__":
             break
     depth_img = depth.copy()
     while not rospy.is_shutdown():
-        rospy.Rate(30).sleep()
+        rospy.Rate(50).sleep()
         i = 0
         tem_dlist = []
         tem_xylist = []
@@ -193,8 +275,8 @@ if __name__ == "__main__":
                 max_key = depth_copy[e][f]
     '''
     image_copy = im2.copy()
-    for e in range(1, len(xylist) - 1, 1):
-        for f in range(1, len(xylist[0]) - 1, 1):
+    for e in range(1, len(xylist) + 1, 1):
+        for f in range(1, len(xylist[0]) + 1, 1):
             circle_color = color[depth_copy[e][f]]
             #if depth_copy[e][f] == max_key:
             cv2.circle(image_copy, xylist[e-1][f-1], 2, circle_color, 2)
