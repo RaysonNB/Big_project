@@ -221,8 +221,9 @@ if __name__ == "__main__":
     bottlecnt=0
     line_destory_cnt=0
     times_cnt=2 #times count
+    #cv2.imshow("bottle", frame2)  
     while not rospy.is_shutdown():
-        rospy.Rate(10).sleep()
+        rospy.Rate(50).sleep()
         
         if frame2 is None: 
             print("frame2")
@@ -233,24 +234,44 @@ if __name__ == "__main__":
         line_frame=frame2.copy()
         line_img = np.zeros_like(line_frame)
         sumd=0
-        if step=="get":
-            frame2=frame2.copy()
-            bottle=[]
-            detections = dnn_yolo.forward(frame2)[0]["det"]
-            #detections = dnn_yolo.forward(frame)[0]["det"]
-            #print(detections)
-            al=[]
-            ind=0
-            for i, detection in enumerate(detections):
-                x1, y1, x2, y2, score, class_id = map(int, detection)
-                score=detection[4]
-                if class_id != 39: continue
-                if score<0.4: continue
-                al.append([x1, y1, x2, y2, score, class_id])
-                #print(float(score), class_id)
-                cv2.putText(frame2, str(class_id), (x1+5, y1+15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-            bb=sorted(al, key=(lambda x:x[0]))
-            #print(bb)
+        frame2=frame2.copy()
+        bottle=[]
+        detections = dnn_yolo.forward(frame2)[0]["det"]
+        #detections = dnn_yolo.forward(frame)[0]["det"]
+        #print(detections)
+        al=[]
+        ind=0
+        for i, detection in enumerate(detections):
+            x1, y1, x2, y2, score, class_id = map(int, detection)
+            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+            score=detection[4]
+            if class_id != 39: continue
+            if score<0.3: continue
+            _,_,kkkz=get_real_xyz(depth2,cx, cy)
+            if kkkz>2500: continue
+            al.append([x1, y1, x2, y2, score, class_id])
+            #print(float(score), class_id)
+            cv2.putText(frame2, str(class_id), (x1+5, y1+15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+        bb=sorted(al, key=(lambda x:x[0]))
+        #print(bb)
+        if step2=="turn":
+            h=0
+            for i in bb:
+                #print(i)
+                x1, y1, x2, y2, _, _ = i
+                cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                if h==mark:
+                    cv2.rectangle(frame2, (x1, y1), (x2, y2), (0, 0, 255), 4)
+                else:
+                    cv2.rectangle(frame2, (x1, y1), (x2, y2), (0, 255, 255), 4)
+                cv2.putText(frame2, str(int(ind)), (cx,cy+50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 3)
+                ind+=1
+                px,py,pz=get_real_xyz(depth2,cx, cy)
+                cnt=get_distance(px,py,pz,ax,ay,az,bx,by,bz)
+                cv2.circle(frame2, (cx, cy), 5, (0, 255, 0), -1)
+                cv2.putText(frame2, str(int(pz)), (cx,cy), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2) 
+                h+=1
+        else:
             for i in bb:
                 #print(i)
                 x1, y1, x2, y2, _, _ = i
@@ -262,166 +283,158 @@ if __name__ == "__main__":
                 cnt=get_distance(px,py,pz,ax,ay,az,bx,by,bz)
                 cv2.circle(frame2, (cx, cy), 5, (0, 255, 0), -1)
                 cv2.putText(frame2, str(int(pz)), (cx,cy), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)          
-            outframe=frame2.copy()
-            if step2=="dead":
-                
-                t_pose=None
-                points=[]
-                poses = net_pose.forward(outframe)
-                
-                for i, pose in enumerate(poses):
-                    point = []
-                    for j, (x,y,preds) in enumerate(pose): #x: ipex 坐標 y: ipex 坐標 preds: 准度
-                        if preds <= 0: continue
-                        x,y = map(int,[x,y])
-                        _,_,td=get_real_xyz(depth2,x, y)
-                        if td>=2000: continue
-                        if j in [8,10]:
-                            point.append(j)
-                    if len(point) == 2:
-                        t_pose = poses[i]
-                        break
-                    #print(point)
-                
-                TTT=0
-                E=0
-                s_c=[]
-                dis_list=[]
-                s_d=[]
-                ggg=0
-                flag=None
-                
-                if t_pose is not None:
-                    ax, ay, az, bx, by, bz = pose_draw(outframe)
-                    if len(bb) <3:
-                        if bottlecnt>=3:
-                            say("not enught bottle")
-                            bottlecnt+=1
-                        continue
-                    for i, detection in enumerate(bb):
-                        #print(detection)
-                        x1, y1, x2, y2, score, class_id = map(int, detection)
-                        score = detection[4]
-                        #print(id)
-                        if(class_id == 39):
-                            ggg=1
-                            bottle.append(detection)
-                            E+=1
-                            cx1 = (x2 - x1) // 2 + x1
-                            cy1 = (y2 - y1) // 2 + y1
-                            
-                            
-                            px,py,pz=get_real_xyz(depth2, cx1, cy1)
-                            dis_list.append(pz)
-                            cnt=get_distance(px,py,pz,ax,ay,az,bx,by,bz)
-                            
-                            cnt=int(cnt)
-                            if cnt!=0 and cnt<=600: cnt=int(cnt)
-                            else: cnt=9999
-                            s_c.append(cnt)
-                            s_d.append(pz)
-                            
-                if ggg==0: s_c=[9999]
-                TTT=min(s_c)
-                E=s_c.index(TTT)
-                for i, detection in enumerate(bottle):
-                    #print("1")
+        outframe=frame2.copy()
+        if step2=="dead":
+            
+            t_pose=None
+            points=[]
+            poses = net_pose.forward(outframe)
+            
+            for i, pose in enumerate(poses):
+                point = []
+                for j, (x,y,preds) in enumerate(pose): #x: ipex 坐標 y: ipex 坐標 preds: 准度
+                    if preds <= 0: continue
+                    x,y = map(int,[x,y])
+                    _,_,td=get_real_xyz(depth2,x, y)
+                    if td>=2000: continue
+                    if j in [8,10]:
+                        point.append(j)
+                if len(point) == 2:
+                    t_pose = poses[i]
+                    break
+                #print(point)
+            
+            TTT=0
+            E=0
+            s_c=[]
+            dis_list=[]
+            s_d=[]
+            ggg=0
+            flag=None
+            
+            if t_pose is not None:
+                ax, ay, az, bx, by, bz = pose_draw(outframe)
+                if len(bb) <3:
+                    if bottlecnt>=3:
+                        say("not enught bottle")
+                        bottlecnt+=1
+                    #continue
+                for i, detection in enumerate(bb):
+                    #print(detection)
                     x1, y1, x2, y2, score, class_id = map(int, detection)
+                    score = detection[4]
+                    #print(id)
                     if(class_id == 39):
-                        if i == E and E!=9999 and TTT <=700:
-                            cx1 = (x2 - x1) // 2 + x1
-                            cy1 = (y2 - y1) // 2 + y1
-                            cv2.putText(outframe, str(int(TTT)//10), (x1 + 5, y1 - 40), cv2.FONT_HERSHEY_SIMPLEX, 1.15, (0, 0, 255), 2)
-                            cv2.rectangle(outframe, (x1, y1), (x2, y2), (0, 0, 255), 5)
-                            if i==0: b1+=1
-                            if i==1: b2+=1
-                            if i==2: b3+=1
-                            _,_,dddd1=get_real_xyz(depth2, cx1, cy1)
-                            
-                            
-                            break
-                                    
-                        else:
-                            v=s_c[i]
-                            cv2.putText(outframe, str(int(v)), (x1+5, y1-30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                if b1==max(b1,b2,b3): mark=0
-                if b2==max(b1,b2,b3): mark=1
-                if b3==max(b1,b2,b3): mark=2
-                if b1 >=times_cnt or b2>=times_cnt or b3>=times_cnt:
-                    step2="turn"
-                    gg=bb
-                print("b1: %d b2: %d b3: %d" % (b1, b2, b3))
-            if step2=="turn":
-                if sb == 0:
-                    
-                    b1,b2,b3=0,0,0
-                    if mark==0: say("the right bottle") #say("the right yellow bottle, which is the Vitamin C Sparkling Drink")
-                    if mark==1: say("the middle bottle") #say("the middle green botlle, which is the only green tea here")
-                    if mark==2: say("the right bottle") #say("the left blue bottle, which is the Oolong Tea")
-                    sb+=1
-                #if len(bb)<2: continu
-                #print(bb)
-                h,w,c = outframe.shape
-                print("mark",mark)
-                if mark==999 or len(bb)<(mark+1):
-                    step2="dead"
-                    b1,b2,b3=0,0,0
-                if len(bb)!=3: continue
-                print(bb)
-                x1, y1, x2, y2, score, class_id = map(int, bb[mark])
-                cv2.rectangle(outframe, (x1, y1), (x2, y2), (0, 0, 255), 5)
-                '''
-                if sb==1:
-                    cnt=-1
-                    far=0
-                    far_pos=0
-                    near=99999
-                    near_pos=0
-                    for i in bb:
-                        cnt+=1
-                        x1, y1, x2, y2, score, class_id=i
+                        ggg=1
+                        bottle.append(detection)
+                        E+=1
                         cx1 = (x2 - x1) // 2 + x1
                         cy1 = (y2 - y1) // 2 + y1
+                        
+                        
+                        px,py,pz=get_real_xyz(depth2, cx1, cy1)
+                        dis_list.append(pz)
+                        cnt=get_distance(px,py,pz,ax,ay,az,bx,by,bz)
+                        
+                        cnt=int(cnt)
+                        if cnt!=0 and cnt<=600: cnt=int(cnt)
+                        else: cnt=9999
+                        s_c.append(cnt)
+                        s_d.append(pz)
+                        
+            if ggg==0: s_c=[9999]
+            TTT=min(s_c)
+            E=s_c.index(TTT)
+            for i, detection in enumerate(bottle):
+                #print("1")
+                x1, y1, x2, y2, score, class_id = map(int, detection)
+                if(class_id == 39):
+                    if i == E and E!=9999 and TTT <=700:
+                        cx1 = (x2 - x1) // 2 + x1
+                        cy1 = (y2 - y1) // 2 + y1
+                        cv2.putText(outframe, str(int(TTT)//10), (x1 + 5, y1 - 40), cv2.FONT_HERSHEY_SIMPLEX, 1.15, (0, 0, 255), 2)
+                        cv2.rectangle(outframe, (x1, y1), (x2, y2), (0, 0, 255), 5)
+                        if i==0: b1+=1
+                        if i==1: b2+=1
+                        if i==2: b3+=1
                         _,_,dddd1=get_real_xyz(depth2, cx1, cy1)
-                        if dddd1<near:
-                            near=dddd1
-                            near_pos=cnt
-                        if dddd1<far:
-                            far=dddd1
-                            far_pos=cnt
-                    if near_pos == mark:
-                        say("This is the closest bottle to me.")
-                    elif far_pos == mark:
-                        say("this is the furthest bottle to me.")
+                        
+                        
+                        break
+                                
                     else:
-                        say("this is not the nearest or farthest bottle to me.")
-                    sb+=1'''
-                            
-                    
-                if framecnt==0:
-                    face_box = [x1, y1, x2, y2]
-                    box_roi = outframe[face_box[1]:face_box[3] - 1, face_box[0]:face_box[2] - 1, :]
-                    fh,fw=abs(x1-x2),abs(y1-y2)
-                    box_roi=cv2.resize(box_roi, (fh*10,fw*10), interpolation=cv2.INTER_AREA)
-                    #cv2.imshow("bottle", box_roi)  
-                    get_b=mark
-                    framecnt+=1
-                cx2 = (x2 - x1) // 2 + x1
-                cy2 = (y2 - y1) // 2 + y1
-                e = w//2-cx2
-                v = 0.0015 * e
-                if v > 0:
-                    v = min(v, 0.7)
-                if v < 0:
-                    v = max(v, -0.7)
-                move(0, v)
-                sumd+=v
-                if abs(e) <= 15:
-                    #time.sleep(1)
-                    step2="dead"
-                    b1,b2,b3=0,0,0
-                    mark=999
-                    sb=0
+                        v=s_c[i]
+                        cv2.putText(outframe, str(int(v)), (x1+5, y1-30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            if b1==max(b1,b2,b3): mark=0
+            if b2==max(b1,b2,b3): mark=1
+            if b3==max(b1,b2,b3): mark=2
+            if b1 >=times_cnt or b2>=times_cnt or b3>=times_cnt:
+                step2="turn"
+                gg=bb
+            print("b1: %d b2: %d b3: %d" % (b1, b2, b3))
+        if step2=="turn": 
+            #if len(bb)<2: continu
+            #print(bb)
+            h,w,c = outframe.shape
+            print("mark",mark)
+            if mark==999 or len(bb)<(mark+1):
+                step2="dead"
+                b1,b2,b3=0,0,0
+            if len(bb)!=3: continue
+            print(bb)
+            x1, y1, x2, y2, score, class_id = map(int, bb[mark])
+            cv2.rectangle(outframe, (x1, y1), (x2, y2), (0, 0, 255), 5)
+            '''
+            if sb==1:
+                cnt=-1
+                far=0
+                far_pos=0
+                near=99999
+                near_pos=0
+                for i in bb:
+                    cnt+=1
+                    x1, y1, x2, y2, score, class_id=i
+                    cx1 = (x2 - x1) // 2 + x1
+                    cy1 = (y2 - y1) // 2 + y1
+                    _,_,dddd1=get_real_xyz(depth2, cx1, cy1)
+                    if dddd1<near:
+                        near=dddd1
+                        near_pos=cnt
+                    if dddd1<far:
+                        far=dddd1
+                        far_pos=cnt
+                if near_pos == mark:
+                    say("This is the closest bottle to me.")
+                elif far_pos == mark:
+                    say("this is the furthest bottle to me.")
+                else:
+                    say("this is not the nearest or farthest bottle to me.")
+                sb+=1'''
+                        
+            #cv2.destroyWindow('bottle')
+            if framecnt==99999:
+                face_box = [x1, y1, x2, y2]
+                box_roi = outframe[face_box[1]:face_box[3] - 1, face_box[0]:face_box[2] - 1, :]
+                fh,fw=abs(x1-x2),abs(y1-y2)
+                box_roi=cv2.resize(box_roi, (fh*10,fw*10), interpolation=cv2.INTER_AREA)
+                cv2.imshow("bottle", box_roi)  
+                get_b=mark
+            cx2 = (x2 - x1) // 2 + x1
+            cy2 = (y2 - y1) // 2 + y1
+            e = w//2-cx2
+            v = 0.0015 * e
+            if v > 0:
+                v = min(v, 0.7)
+            if v < 0:
+                v = max(v, -0.7)
+            move(0, v)
+            sumd+=v
+            if abs(e) <= 15:
+                #time.sleep(1)
+                step2="dead"
+                b1,b2,b3=0,0,0
+                mark=999
+                sb=0
                     
            
         
