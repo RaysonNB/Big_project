@@ -1,0 +1,39 @@
+import torch：這行程式碼導入了 PyTorch 套件。
+
+import torch.nn as nn：這行程式碼導入了 PyTorch 中的神經網路模組。
+
+import torch.nn.functional as F：這行程式碼導入了 PyTorch 中的函數式介面模組。
+
+import torch.optim as optim：這行程式碼導入了 PyTorch 中的優化器模組。
+
+from torchvision import datasets, transforms：這行程式碼從 torchvision 套件中導入了資料集和轉換操作模組。
+
+torch.__version__：這行程式碼列印出了目前使用的 PyTorch 版本。
+
+BATCH_SIZE = 512：這行程式碼定義了每個批次的大小。
+
+EPOCHS = 20：這行程式碼定義了訓練迭代的次數。
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")：這行程式碼根據是否有可用的 CUDA 裝置，指定了程式運行的裝置（GPU 或 CPU）。
+
+train_loader = torch.utils.data.DataLoader(...)：這行程式碼建立了一個 DataLoader 物件，用於載入訓練資料集。該資料集是 MNIST，並進行了轉換操作。
+
+test_loader = torch.utils.data.DataLoader(...)：這行程式碼建立了一個 DataLoader 物件，用於載入測試資料集。同樣，該資料集是 MNIST，並進行了轉換操作。
+
+class Nigganet(nn.Module):：這行程式碼定義了一個名為 Nigganet 的網路模型，並繼承了 nn.Module。
+
+def forward(self, x):：這行程式碼定義了網路模型的前向傳播函數。
+
+model = Nigganet().to(DEVICE)：這行程式碼創建了一個 Nigganet 的實例，並將其移至指定的裝置。
+
+optimizer = optim.Adam(model.parameters())：這行程式碼創建了一個 Adam 優化器，並將網路模型的參數傳遞給它。
+
+def train(model, device, train_loader, optimizer, epoch):：這行程式碼定義了一個用於訓練模型的函數。
+
+def test(model, device, test_loader):：這行程式碼定義了一個用於評估模型性能的函數。
+
+for epoch in range(1, EPOCHS + 1):：這行程式碼開始了訓練迴圈，迭代指定次數的訓練周期。
+
+train(model, DEVICE, train_loader, optimizer, epoch)：這行程式碼呼叫了訓練函數，以進行一個訓練周期的訓練。
+
+test(model, DEVICE, test_loader)：這行程式碼呼叫了評估函數，以評估模型在測試資料集上的性能。
